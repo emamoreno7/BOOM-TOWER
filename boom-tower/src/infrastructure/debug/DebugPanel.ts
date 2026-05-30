@@ -139,7 +139,7 @@ Gems: ${player.gems}
 ID: ${session.sessionId.substring(0, 12)}...
 Blocks: ${session.blocksDestroyed}
 Max Combo: ${session.maxCombo}
-Time: ${Math.floor(session.playTimeMs / 1000)}s
+Time: ${Math.floor(Date.now() - session.startedAt / 1000)}s
 
 === PERFORMANCE ===
 FPS: ${fps.toFixed(1)} (avg: ${avgFps.toFixed(1)})

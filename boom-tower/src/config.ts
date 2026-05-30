@@ -58,7 +58,7 @@ export const CONFIG = {
       max: { width: 1440, height: 2560 },
     },
     backgroundColor: '#1a1a2e',
-    fps: 60,
+    fps: { target: 60 },
     antialias: true,
     render: {
       pixelArt: false,

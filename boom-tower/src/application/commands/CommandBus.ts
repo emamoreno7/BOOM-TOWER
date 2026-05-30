@@ -8,8 +8,8 @@ import { Command, CommandResult, CommandData } from './Command';
 
 type CommandHandler<T = unknown> = (payload: T) => CommandResult;
 
-class CommandBus {
-  private static instance: CommandBus;
+class CommandBus_ {
+  private static instance: CommandBus_;
   
   private handlers = new Map<string, CommandHandler>();
   private middleware: CommandMiddleware[] = [];
@@ -20,11 +20,11 @@ class CommandBus {
     Logger.system('CommandBus initialized');
   }
 
-  static getInstance(): CommandBus {
-    if (!CommandBus.instance) {
-      CommandBus.instance = new CommandBus();
+  static getInstance(): CommandBus_ {
+    if (!CommandBus_.instance) {
+      CommandBus_.instance = new CommandBus_();
     }
-    return CommandBus.instance;
+    return CommandBus_.instance;
   }
 
   // Registrar handler
@@ -163,4 +163,4 @@ export interface CommandMiddleware {
 }
 
 // Singleton export
-export const CommandBus = CommandBus.getInstance();
+export const CommandBus = CommandBus_.getInstance();

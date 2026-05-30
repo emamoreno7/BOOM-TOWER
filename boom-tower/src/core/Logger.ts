@@ -5,8 +5,8 @@ import { CONFIG } from '../config';
 // LOGGER — Sistema de logs centralizado
 // ============================================
 
-class Logger {
-  private static instance: Logger;
+class Logger_ {
+  private static instance: Logger_;
   private level: LogLevel = 'DEBUG';
   private prefix = CONFIG.LOG.PREFIX;
   private history: LogEntry[] = [];
@@ -16,11 +16,11 @@ class Logger {
     this.setLevel(CONFIG.LOG.LEVEL);
   }
 
-  static getInstance(): Logger {
-    if (!Logger.instance) {
-      Logger.instance = new Logger();
+  static getInstance(): Logger_ {
+    if (!Logger_.instance) {
+      Logger_.instance = new Logger_();
     }
-    return Logger.instance;
+    return Logger_.instance;
   }
 
   setLevel(level: LogLevel): void {
@@ -131,4 +131,4 @@ interface LogEntry {
 }
 
 // Singleton export
-export const Logger = Logger.getInstance();
+export const Logger = Logger_.getInstance();

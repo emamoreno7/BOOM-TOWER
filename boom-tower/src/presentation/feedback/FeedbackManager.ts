@@ -22,8 +22,8 @@ const DEFAULT_CONFIG: FeedbackConfig = {
   timeDilationDuration: 300,
 };
 
-class FeedbackManager {
-  private static instance: FeedbackManager;
+class FeedbackManager_ {
+  private static instance: FeedbackManager_;
   
   private scene: Phaser.Scene | null = null;
   private config: FeedbackConfig;
@@ -34,11 +34,11 @@ class FeedbackManager {
     Logger.system('FeedbackManager initialized');
   }
 
-  static getInstance(): FeedbackManager {
-    if (!FeedbackManager.instance) {
-      FeedbackManager.instance = new FeedbackManager();
+  static getInstance(): FeedbackManager_ {
+    if (!FeedbackManager_.instance) {
+      FeedbackManager_.instance = new FeedbackManager_();
     }
-    return FeedbackManager.instance;
+    return FeedbackManager_.instance;
   }
 
   init(scene: Phaser.Scene): void {
@@ -135,4 +135,4 @@ class FeedbackManager {
   }
 }
 
-export const FeedbackManager = FeedbackManager.getInstance();
+export const FeedbackManager = FeedbackManager_.getInstance();

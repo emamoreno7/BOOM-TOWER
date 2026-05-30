@@ -18,8 +18,8 @@ export interface AppState {
   ui: UIState;
 }
 
-class StateManager {
-  private static instance: StateManager;
+class StateManager_ {
+  private static instance: StateManager_;
   
   private state: AppState;
   private listeners = new Set<(state: AppState) => void>();
@@ -31,11 +31,11 @@ class StateManager {
     Logger.system('StateManager initialized');
   }
 
-  static getInstance(): StateManager {
-    if (!StateManager.instance) {
-      StateManager.instance = new StateManager();
+  static getInstance(): StateManager_ {
+    if (!StateManager_.instance) {
+      StateManager_.instance = new StateManager_();
     }
-    return StateManager.instance;
+    return StateManager_.instance;
   }
 
   // Estado completo (readonly)
@@ -218,4 +218,4 @@ interface StateChange {
   timestamp: number;
 }
 
-export const StateManager = StateManager.getInstance();
+export const StateManager = StateManager_.getInstance();

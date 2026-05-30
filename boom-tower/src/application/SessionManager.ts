@@ -1,14 +1,15 @@
 import { Logger } from '../core/Logger';
 import { EventBus } from '../core/EventBus';
 import { StateManager } from './state/StateManager';
+import type { AppState } from './state/StateManager';
 import { SaveSystem } from '../infrastructure/save/SaveSystem';
 
 // ============================================
 // SESSION MANAGER — Gestor de sesión y auto-save
 // ============================================
 
-class SessionManager {
-  private static instance: SessionManager;
+class SessionManager_ {
+  private static instance: SessionManager_;
   
   private autoSaveInterval: number | null = null;
   private lastAutoSave = 0;
@@ -19,11 +20,11 @@ class SessionManager {
     Logger.system('SessionManager initialized');
   }
 
-  static getInstance(): SessionManager {
-    if (!SessionManager.instance) {
-      SessionManager.instance = new SessionManager();
+  static getInstance(): SessionManager_ {
+    if (!SessionManager_.instance) {
+      SessionManager_.instance = new SessionManager_();
     }
-    return SessionManager.instance;
+    return SessionManager_.instance;
   }
 
   // Iniciar sesión
@@ -98,7 +99,7 @@ class SessionManager {
       const data = await SaveSystem.load();
       
       if (data) {
-        StateManager.restore(data);
+        StateManager.restore(data as AppState);
         Logger.info('[SessionManager] Load successful');
         EventBus.emit('load:completed', { timestamp: Date.now() });
         return true;
@@ -183,9 +184,10 @@ class SessionManager {
 
   // Verificar si debe mostrar onboarding
   shouldShowOnboarding(): boolean {
+    const session = StateManager.getSession();
     const player = StateManager.getPlayer();
-    return !player.hasMadeFirstPurchase && player.totalGamesPlayed < 3;
+    return !session.hasMadeFirstPurchase && player.totalGamesPlayed < 3;
   }
 }
 
-export const SessionManager = SessionManager.getInstance();
+export const SessionManager = SessionManager_.getInstance();

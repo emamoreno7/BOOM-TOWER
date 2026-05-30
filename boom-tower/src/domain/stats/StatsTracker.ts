@@ -46,8 +46,8 @@ interface PlayerStats {
   };
 }
 
-class StatsTracker {
-  private static instance: StatsTracker;
+class StatsTracker_ {
+  private static instance: StatsTracker_;
   private stats: PlayerStats;
   private initialized = false;
 
@@ -55,11 +55,11 @@ class StatsTracker {
     this.reset();
   }
 
-  static getInstance(): StatsTracker {
-    if (!StatsTracker.instance) {
-      StatsTracker.instance = new StatsTracker();
+  static getInstance(): StatsTracker_ {
+    if (!StatsTracker_.instance) {
+      StatsTracker_.instance = new StatsTracker_();
     }
-    return StatsTracker.instance;
+    return StatsTracker_.instance;
   }
 
   // Inicializar con datos guardados
@@ -272,4 +272,4 @@ Sessions: ${this.stats.time.sessionsPlayed}
   }
 }
 
-export const StatsTracker = StatsTracker.getInstance();
+export const StatsTracker = StatsTracker_.getInstance();

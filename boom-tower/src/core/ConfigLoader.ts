@@ -21,8 +21,8 @@ interface LoadResult<T> {
   warnings: string[];
 }
 
-class ConfigLoader {
-  private static instance: ConfigLoader;
+class ConfigLoader_ {
+  private static instance: ConfigLoader_;
   private configs = new Map<string, JSONValue>();
   private loadingPromises = new Map<string, Promise<JSONValue>>();
   private basePath = '/data';
@@ -31,11 +31,11 @@ class ConfigLoader {
     Logger.system('ConfigLoader initialized');
   }
 
-  static getInstance(): ConfigLoader {
-    if (!ConfigLoader.instance) {
-      ConfigLoader.instance = new ConfigLoader();
+  static getInstance(): ConfigLoader_ {
+    if (!ConfigLoader_.instance) {
+      ConfigLoader_.instance = new ConfigLoader_();
     }
-    return ConfigLoader.instance;
+    return ConfigLoader_.instance;
   }
 
   setBasePath(path: string): void {
@@ -207,7 +207,7 @@ class ConfigLoader {
   }
 }
 
-export const ConfigLoader = ConfigLoader.getInstance();
+export const ConfigLoader = ConfigLoader_.getInstance();
 
 // Helper para crear schemas
 export function createSchema(schema: ConfigSchema): ConfigSchema {

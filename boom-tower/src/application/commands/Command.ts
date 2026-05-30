@@ -26,7 +26,7 @@ export interface CommandData {
 
 // Base abstracta para comandos
 export abstract class BaseCommand implements Command {
-  abstract readonly id: string;
+  readonly id: string;
   abstract readonly type: string;
   readonly timestamp: number;
 

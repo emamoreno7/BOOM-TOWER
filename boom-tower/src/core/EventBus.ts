@@ -14,8 +14,8 @@ interface Subscription {
   once: boolean;
 }
 
-class EventBus {
-  private static instance: EventBus;
+class EventBus_ {
+  private static instance: EventBus_;
   private subscriptions = new Map<string, Subscription[]>();
   private eventHistory: EventRecord[] = [];
   private nextId = 0;
@@ -25,11 +25,11 @@ class EventBus {
     Logger.system('EventBus initialized');
   }
 
-  static getInstance(): EventBus {
-    if (!EventBus.instance) {
-      EventBus.instance = new EventBus();
+  static getInstance(): EventBus_ {
+    if (!EventBus_.instance) {
+      EventBus_.instance = new EventBus_();
     }
-    return EventBus.instance;
+    return EventBus_.instance;
   }
 
   // Suscribirse a un evento
@@ -181,7 +181,7 @@ interface EventRecord {
 }
 
 // Singleton export
-export const EventBus = EventBus.getInstance();
+export const EventBus = EventBus_.getInstance();
 
 // Helper para crear listeners con tipado
 export function createEventHandler<T>(handler: (payload: T) => void): EventHandler<T> {

@@ -132,8 +132,8 @@ export class ObjectPool<T> {
 }
 
 // Pool manager para pools pre-configurados
-class PoolManager {
-  private static instance: PoolManager;
+class PoolManager_ {
+  private static instance: PoolManager_;
   private pools = new Map<string, ObjectPool<unknown>>();
   private logger = Logger;
 
@@ -141,11 +141,11 @@ class PoolManager {
     this.logger.system('PoolManager initialized');
   }
 
-  static getInstance(): PoolManager {
-    if (!PoolManager.instance) {
-      PoolManager.instance = new PoolManager();
+  static getInstance(): PoolManager_ {
+    if (!PoolManager_.instance) {
+      PoolManager_.instance = new PoolManager_();
     }
-    return PoolManager.instance;
+    return PoolManager_.instance;
   }
 
   register<T>(name: string, factory: () => T, reset?: (obj: T) => void, maxSize = 200): ObjectPool<T> {
@@ -179,4 +179,4 @@ class PoolManager {
   }
 }
 
-export const PoolManager = PoolManager.getInstance();
+export const PoolManager = PoolManager_.getInstance();

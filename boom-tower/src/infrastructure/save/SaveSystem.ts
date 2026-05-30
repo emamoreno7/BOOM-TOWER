@@ -1,6 +1,6 @@
 import { Logger } from '../../core/Logger';
 import { CONFIG } from '../../config';
-import type { SaveData } from '../../types';
+import type { SaveData, GraphicsQuality, Language } from '../../types';
 
 // ============================================
 // SAVE SYSTEM — Sistema de guardado robusto
@@ -12,8 +12,8 @@ interface SaveMetadata {
   checksum: string;
 }
 
-class SaveSystem {
-  private static instance: SaveSystem;
+class SaveSystem_ {
+  private static instance: SaveSystem_;
   
   private storageDriver: StorageDriver | null = null;
   private saveKey = CONFIG.SAVE.KEY;
@@ -24,11 +24,11 @@ class SaveSystem {
     Logger.system('SaveSystem initialized');
   }
 
-  static getInstance(): SaveSystem {
-    if (!SaveSystem.instance) {
-      SaveSystem.instance = new SaveSystem();
+  static getInstance(): SaveSystem_ {
+    if (!SaveSystem_.instance) {
+      SaveSystem_.instance = new SaveSystem_();
     }
-    return SaveSystem.instance;
+    return SaveSystem_.instance;
   }
 
   // Inicializar con driver
@@ -57,6 +57,7 @@ class SaveSystem {
         playerId: '',
         createdAt: Date.now(),
         lastPlayedAt: Date.now(),
+        settings: { musicVolume: 1, sfxVolume: 1, vibration: true, quality: 'medium' as GraphicsQuality, language: 'es' as Language },
         ...(data as object),
       };
 
@@ -233,4 +234,4 @@ export interface StorageDriver {
   remove(key: string): Promise<void>;
 }
 
-export const SaveSystem = SaveSystem.getInstance();
+export const SaveSystem = SaveSystem_.getInstance();

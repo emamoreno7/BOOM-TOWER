@@ -21,8 +21,8 @@ interface TransitionConfig {
   color?: number;
 }
 
-class SceneRouter {
-  private static instance: SceneRouter;
+class SceneRouter_ {
+  private static instance: SceneRouter_;
   
   private sceneMap = new Map<string, RouteConfig>();
   private currentScene: string | null = null;
@@ -33,11 +33,11 @@ class SceneRouter {
     Logger.system('SceneRouter initialized');
   }
 
-  static getInstance(): SceneRouter {
-    if (!SceneRouter.instance) {
-      SceneRouter.instance = new SceneRouter();
+  static getInstance(): SceneRouter_ {
+    if (!SceneRouter_.instance) {
+      SceneRouter_.instance = new SceneRouter_();
     }
-    return SceneRouter.instance;
+    return SceneRouter_.instance;
   }
 
   // Registrar escena
@@ -185,8 +185,8 @@ class SceneRouter {
         ? this.sceneMap.get(this.currentScene)?.sceneClass.name 
         : null;
       
-      if (prevKey && game.scene.get(prevKey)) {
-        game.scene.get(prevKey).cameras.main.fadeOut(duration / 2, 
+      if (prevKey && (game.scene as any).get(prevKey)) {
+        (game.scene as any).get(prevKey).cameras.main.fadeOut(duration / 2, 
           (color >> 16) & 0xff,
           (color >> 8) & 0xff,
           color & 0xff
@@ -194,7 +194,7 @@ class SceneRouter {
       }
 
       // Fade in del nuevo
-      game.scene.get(newScene.scene.key).cameras.main.fadeIn(duration / 2, 
+      (game.scene as any).get(newScene.scene.key).cameras.main.fadeIn(duration / 2, 
         (color >> 16) & 0xff,
         (color >> 8) & 0xff,
         color & 0xff
@@ -246,4 +246,4 @@ class SceneRouter {
   }
 }
 
-export const SceneRouter = SceneRouter.getInstance();
+export const SceneRouter = SceneRouter_.getInstance();

@@ -44,7 +44,7 @@ class InputManager {
   private setupInput(): void {
     // Keyboard
     if (this.config.enableKeyboard) {
-      this.game.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      (this.game.input.keyboard as any)?.on('keydown', (event: KeyboardEvent) => {
         if (this.isPaused) return;
         
         //Pause
@@ -62,12 +62,12 @@ class InputManager {
     }
 
     // Pointers (mouse + touch unificados)
-    this.game.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+    (this.game.input as any).on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.isPaused) return;
       this.handleTap(pointer.x, pointer.y);
     });
 
-    this.game.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+    (this.game.input as any).on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (this.isPaused) return;
       EventBus.emit('input:pointermove', { x: pointer.x, y: pointer.y });
     });
@@ -99,7 +99,7 @@ class InputManager {
     if (this.doubleTapTimer) {
       this.doubleTapTimer.remove();
     }
-    this.doubleTapTimer = this.game.time.addEvent({
+    this.doubleTapTimer = (this.game.scene.scenes[0] as Phaser.Scene)?.time.addEvent({
       delay: this.config.doubleTapDelay,
       callback: () => {
         // Double tap window expired

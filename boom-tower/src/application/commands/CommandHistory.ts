@@ -12,8 +12,8 @@ interface HistoryEntry {
   undoable: boolean;
 }
 
-class CommandHistory {
-  private static instance: CommandHistory;
+class CommandHistory_ {
+  private static instance: CommandHistory_;
   
   private history: HistoryEntry[] = [];
   private redoStack: HistoryEntry[] = [];
@@ -25,11 +25,11 @@ class CommandHistory {
     Logger.system('CommandHistory initialized');
   }
 
-  static getInstance(): CommandHistory {
-    if (!CommandHistory.instance) {
-      CommandHistory.instance = new CommandHistory();
+  static getInstance(): CommandHistory_ {
+    if (!CommandHistory_.instance) {
+      CommandHistory_.instance = new CommandHistory_();
     }
-    return CommandHistory.instance;
+    return CommandHistory_.instance;
   }
 
   // Registrar comando ejecutado
@@ -138,4 +138,4 @@ class CommandHistory {
   }
 }
 
-export const CommandHistory = CommandHistory.getInstance();
+export const CommandHistory = CommandHistory_.getInstance();

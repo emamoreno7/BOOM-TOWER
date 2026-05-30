@@ -9,8 +9,8 @@ import { StatsTracker } from '../domain/stats/StatsTracker';
 // GAME CONTROLLER — Orquestador del gameplay
 // ============================================
 
-class GameController {
-  private static instance: GameController;
+class GameController_ {
+  private static instance: GameController_;
   
   private game: Phaser.Game | null = null;
   private inputManager: InputManager | null = null;
@@ -21,11 +21,11 @@ class GameController {
     Logger.system('GameController initialized');
   }
 
-  static getInstance(): GameController {
-    if (!GameController.instance) {
-      GameController.instance = new GameController();
+  static getInstance(): GameController_ {
+    if (!GameController_.instance) {
+      GameController_.instance = new GameController_();
     }
-    return GameController.instance;
+    return GameController_.instance;
   }
 
   // Inicializar con Phaser game
@@ -251,4 +251,4 @@ class GameController {
   }
 }
 
-export const GameController = GameController.getInstance();
+export const GameController = GameController_.getInstance();
