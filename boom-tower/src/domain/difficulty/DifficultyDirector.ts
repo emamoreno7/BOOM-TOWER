@@ -1,7 +1,3 @@
-// ============================================
-// DIFFICULTY DIRECTOR — Ajusta la dificultad según el progreso
-// ============================================
-
 import { BlockFactory } from '../blocks/BlockFactory';
 import { BlockType } from '../blocks/BlockType';
 import { Logger } from '../../core/Logger';
@@ -9,23 +5,46 @@ import { Logger } from '../../core/Logger';
 export interface DifficultyLevel {
   minChain: number;
   typesAvailable: BlockType[];
+  specialChance: number;
   label: string;
 }
 
 const LEVELS: DifficultyLevel[] = [
-  { minChain: 2, typesAvailable: [BlockType.RED, BlockType.BLUE, BlockType.GREEN], label: 'Easy' },
-  { minChain: 2, typesAvailable: [BlockType.RED, BlockType.BLUE, BlockType.GREEN, BlockType.YELLOW], label: 'Normal' },
-  { minChain: 2, typesAvailable: [BlockType.RED, BlockType.BLUE, BlockType.GREEN, BlockType.YELLOW, BlockType.PURPLE], label: 'Hard' },
+  {
+    minChain: 2,
+    typesAvailable: [BlockType.RED, BlockType.BLUE, BlockType.GREEN],
+    specialChance: 0.03,
+    label: 'Easy',
+  },
+  {
+    minChain: 2,
+    typesAvailable: [BlockType.RED, BlockType.BLUE, BlockType.GREEN, BlockType.YELLOW],
+    specialChance: 0.05,
+    label: 'Normal',
+  },
+  {
+    minChain: 2,
+    typesAvailable: [BlockType.RED, BlockType.BLUE, BlockType.GREEN, BlockType.YELLOW, BlockType.PURPLE],
+    specialChance: 0.08,
+    label: 'Hard',
+  },
+  {
+    minChain: 2,
+    typesAvailable: [BlockType.RED, BlockType.BLUE, BlockType.GREEN, BlockType.YELLOW, BlockType.PURPLE],
+    specialChance: 0.12,
+    label: 'Insane',
+  },
 ];
+
+const SCORE_THRESHOLDS = [0, 2000, 8000, 20000];
 
 export class DifficultyDirector {
   private currentLevel = 0;
-  private scoreThresholds = [0, 2000, 8000];
 
   evaluate(score: number, factory: BlockFactory): void {
     let newLevel = 0;
-    for (let i = this.scoreThresholds.length - 1; i >= 0; i--) {
-      if (score >= this.scoreThresholds[i]) {
+    for (let i = SCORE_THRESHOLDS.length - 1; i >= 0; i--) {
+      if (score >= SCORE_THRESHOLDS[i]) {
         newLevel = i;
         break;
       }
@@ -36,17 +55,23 @@ export class DifficultyDirector {
       const level = LEVELS[this.currentLevel];
       Logger.info(`[DifficultyDirector] Level up: ${level.label}`);
 
-      // Ajustar pesos del factory
+      // Ajustar pesos normales
       for (const type of Object.values(BlockType)) {
         if (type === BlockType.EMPTY) continue;
         const available = level.typesAvailable.includes(type as BlockType);
-        factory.setWeight(type as BlockType, available ? 1 : 0);
+        if (available) factory.setWeight(type as BlockType, 1);
       }
+
+      // Ajustar chance de especiales
+      factory.setSpecialChance(level.specialChance);
     }
   }
 
   getCurrentLevel(): DifficultyLevel {
     return LEVELS[this.currentLevel];
   }
+
+  getCurrentLevelIndex(): number {
+    return this.currentLevel;
+  }
 }
-// EOF

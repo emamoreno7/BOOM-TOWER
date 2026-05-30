@@ -1,18 +1,14 @@
-// ============================================
-// BLOCK TYPE — Tipos de bloques del juego
-// ============================================
 export enum BlockType {
-  RED      = 'RED',
-  BLUE     = 'BLUE',
-  GREEN    = 'GREEN',
-  YELLOW   = 'YELLOW',
-  PURPLE   = 'PURPLE',
-  EMPTY    = 'EMPTY',
-  // Especiales
-  BOMB     = 'BOMB',
+  RED    = 'RED',
+  BLUE   = 'BLUE',
+  GREEN  = 'GREEN',
+  YELLOW = 'YELLOW',
+  PURPLE = 'PURPLE',
+  BOMB   = 'BOMB',
   LIGHTNING = 'LIGHTNING',
-  RAINBOW  = 'RAINBOW',
-  JACKPOT  = 'JACKPOT',
+  RAINBOW   = 'RAINBOW',
+  JACKPOT   = 'JACKPOT',
+  EMPTY  = 'EMPTY',
 }
 
 export const BLOCK_COLORS: Record<BlockType, number> = {
@@ -21,11 +17,11 @@ export const BLOCK_COLORS: Record<BlockType, number> = {
   [BlockType.GREEN]:     0x44cc44,
   [BlockType.YELLOW]:    0xffdd00,
   [BlockType.PURPLE]:    0xaa44ff,
-  [BlockType.EMPTY]:     0x000000,
   [BlockType.BOMB]:      0xff6600,
   [BlockType.LIGHTNING]: 0xffff00,
-  [BlockType.RAINBOW]:   0xffffff,
+  [BlockType.RAINBOW]:   0xff88ff,
   [BlockType.JACKPOT]:   0xffd700,
+  [BlockType.EMPTY]:     0x000000,
 };
 
 export const BLOCK_SCORE: Record<BlockType, number> = {
@@ -34,11 +30,11 @@ export const BLOCK_SCORE: Record<BlockType, number> = {
   [BlockType.GREEN]:     100,
   [BlockType.YELLOW]:    150,
   [BlockType.PURPLE]:    200,
-  [BlockType.EMPTY]:     0,
   [BlockType.BOMB]:      500,
-  [BlockType.LIGHTNING]: 400,
-  [BlockType.RAINBOW]:   300,
+  [BlockType.LIGHTNING]: 500,
+  [BlockType.RAINBOW]:   800,
   [BlockType.JACKPOT]:   1000,
+  [BlockType.EMPTY]:     0,
 };
 
 export const PLAYABLE_TYPES = [
@@ -58,8 +54,4 @@ export const SPECIAL_TYPES = [
 
 export function isSpecial(type: BlockType): boolean {
   return SPECIAL_TYPES.includes(type);
-}
-
-export function isPlayable(type: BlockType): boolean {
-  return PLAYABLE_TYPES.includes(type);
 }

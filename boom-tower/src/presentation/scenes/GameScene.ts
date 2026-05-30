@@ -19,6 +19,8 @@ import { PauseOverlay } from '../overlay/PauseOverlay';
 import { UIManager } from '../ui/UIManager';
 import { AudioManager } from '../audio/AudioManager';
 import { Block } from '../../domain/blocks/Block';
+import { BlockType, isSpecial } from '../../domain/blocks/BlockType';
+import { handleSpecialBlock } from '../../domain/blocks/special/SpecialBlockHandler';
 
 const GRID_ROWS = 8;
 const GRID_COLS = 6;
@@ -65,13 +67,13 @@ export class GameScene extends Phaser.Scene {
     this.gridOriginY = height / 2 - (GRID_ROWS * this.cellSize) / 2 + this.cellSize / 2;
 
     // Domain
-    this.blockFactory      = new BlockFactory();
-    this.grid              = new Grid({ rows: GRID_ROWS, cols: GRID_COLS });
-    this.gridRefiller      = new GridRefiller(this.blockFactory);
-    this.chainEvaluator    = new ChainEvaluator(2);
-    this.chainProcessor    = new ChainProcessor();
-    this.scoreSystem       = new ScoreSystem();
-    this.comboSystem       = new ComboSystem(3000);
+    this.blockFactory       = new BlockFactory();
+    this.grid               = new Grid({ rows: GRID_ROWS, cols: GRID_COLS });
+    this.gridRefiller       = new GridRefiller(this.blockFactory);
+    this.chainEvaluator     = new ChainEvaluator(2);
+    this.chainProcessor     = new ChainProcessor();
+    this.scoreSystem        = new ScoreSystem();
+    this.comboSystem        = new ComboSystem(3000);
     this.difficultyDirector = new DifficultyDirector();
 
     // Presentation
@@ -87,14 +89,12 @@ export class GameScene extends Phaser.Scene {
     this.fillGrid();
     this.hud.create();
 
-    // Pause overlay last (highest depth)
+    // Pause overlay last
     this.pauseOverlay = new PauseOverlay(this);
 
-    // Input + events
     this.setupInput();
     this.setupEvents();
 
-    // Start
     GameController.init(this);
     GameController.startGame();
 
@@ -115,7 +115,7 @@ export class GameScene extends Phaser.Scene {
     const g = this.add.graphics();
     g.setDepth(1);
     const w = GRID_COLS * this.cellSize;
-  const h = GRID_ROWS * this.cellSize;
+    const h = GRID_ROWS * this.cellSize;
     const x = this.gridOriginX - this.cellSize / 2;
     const y = this.gridOriginY - this.cellSize / 2;
 
@@ -134,9 +134,7 @@ export class GameScene extends Phaser.Scene {
 
   private fillGrid(): void {
     const blocks = this.gridRefiller.refill(this.grid);
-    for (const block of blocks) {
-      this.spawnBlockView(block);
-    }
+    for (const block of blocks) this.spawnBlockView(block);
   }
 
   private setupInput(): void {
@@ -154,9 +152,7 @@ export class GameScene extends Phaser.Scene {
     this.subscriptions.push(
       EventBus.on('game:restart', () => this.restartScene()),
       EventBus.on('input:pause', () => {
-        if (!StateManager.getGame().isPaused) {
-          GameController.pauseGame();
-        }
+        if (!StateManager.getGame().isPaused) GameController.pauseGame();
       }),
     );
   }
@@ -164,14 +160,24 @@ export class GameScene extends Phaser.Scene {
   // ==================== GAMEPLAY ====================
 
   private handleTap(row: number, col: number): void {
-    const chain = this.chainEvaluator.evaluate(this.grid, row, col);
+    const block = this.grid.get(row, col);
+    if (!block) return;
 
-    if (!chain) {
-      this.playInvalidTap(row, col);
+    this.isProcessing = true;
+
+    // Bloque especial
+    if (isSpecial(block.type)) {
+      this.handleSpecialTap(block);
       return;
     }
 
-    this.isProcessing = true;
+    // Cadena normal
+    const chain = this.chainEvaluator.evaluate(this.grid, row, col);
+    if (!chain) {
+      this.playInvalidTap(row, col);
+      this.isProcessing = false;
+      return;
+    }
 
     const comboLevel = this.comboSystem.hit();
     GameController.registerCombo(comboLevel);
@@ -179,62 +185,166 @@ export class GameScene extends Phaser.Scene {
     const score = this.scoreSystem.calculate(chain, comboLevel);
     GameController.addScore(score.total, chain.type);
 
-    this.difficultyDirector.evaluate(
-      StateManager.getGame().score,
-      this.blockFactory
-    );
+    this.difficultyDirector.evaluate(StateManager.getGame().score, this.blockFactory);
 
     const { removedBlocks, affectedCols } = this.chainProcessor.process(this.grid, chain);
+    this.playDestroyVFX(removedBlocks, score.total);
 
-    // VFX
-    const blockPositions = removedBlocks.map(b => ({
-      x: this.gridToWorld(b.row, b.col).x,
-      y: this.gridToWorld(b.row, b.col).y,
-      type: b.type,
-    }));
-    this.vfx.playChainExplosion(blockPositions);
-
-    // Score flotante en el centro de la cadena
-    if (blockPositions.length > 0) {
-      const cx = blockPositions.reduce((s, b) => s + b.x, 0) / blockPositions.length;
-      const cy = blockPositions.reduce((s, b) => s + b.y, 0) / blockPositions.length;
-      this.vfx.showFloatingScore(cx, cy, score.total);
-    }
-
-    // Shake según tamaño
     if (removedBlocks.length >= 10) this.vfx.shake(0.02, 300);
     else if (removedBlocks.length >= 5) this.vfx.shake(0.01, 150);
 
-    // Audio
     this.audio.playChainSFX(chain.blocks.length);
     if (comboLevel >= 5) this.audio.playComboSFX(comboLevel);
 
-    // Destruir vistas
     this.playDestroyAnimation(removedBlocks, () => {
-      const fallen = this.chainProcessor.applyGravity(this.grid, affectedCols);
-      this.updateFallenViews(fallen, () => {
-        const newBlocks = this.gridRefiller.refillCols(this.grid, affectedCols);
-        this.spawnNewBlockViews(newBlocks, () => {
-          if (!this.chainEvaluator.hasAnyChain(this.grid)) {
-            this.triggerGameOver();
-          } else {
-            this.isProcessing = false;
-          }
+      this.applyGravityAndRefill(affectedCols, () => {
+        this.checkCascade(() => {
+          this.isProcessing = false;
         });
       });
     });
   }
 
+  private handleSpecialTap(block: Block): void {
+    const result = handleSpecialBlock(this.grid, block, this.getMostCommonType());
+    if (!result) { this.isProcessing = false; return; }
+
+    const { affectedBlocks, specialType, scoreMultiplier } = result;
+    const baseScore = affectedBlocks.length * 100 * scoreMultiplier;
+    GameController.addScore(baseScore, specialType);
+
+    // VFX por tipo
+    const { x, y } = this.gridToWorld(block.row, block.col);
+    switch (specialType) {
+      case BlockType.BOMB:
+        this.vfx.playBombEffect(x, y);
+        this.audio.playSpecialSFX('bomb');
+        this.uiManager.showEventBanner('BOOM!', '#ff6600');
+        break;
+      case BlockType.LIGHTNING:
+        this.vfx.playLightningEffect(this, x, 0, x, this.cameras.main.height);
+        this.audio.playSpecialSFX('lightning');
+        this.uiManager.showEventBanner('LIGHTNING!', '#ffff00');
+        break;
+      case BlockType.RAINBOW:
+        this.vfx.playRainbowEffect(x, y);
+        this.audio.playSpecialSFX('rainbow');
+        this.uiManager.showEventBanner('RAINBOW!', '#ff88ff');
+        break;
+      case BlockType.JACKPOT:
+        this.vfx.playJackpotEffect(x, y);
+        this.audio.playSpecialSFX('jackpot');
+        this.uiManager.showEventBanner('JACKPOT! x5', '#ffd700');
+        break;
+    }
+
+    const affectedCols = [...new Set(affectedBlocks.map(b => b.col))];
+    const { removedBlocks } = this.chainProcessor.process(
+      this.grid,
+      { blocks: affectedBlocks, type: specialType }
+    );
+
+    this.playDestroyAnimation(removedBlocks, () => {
+      this.applyGravityAndRefill(affectedCols, () => {
+        this.checkCascade(() => {
+          this.isProcessing = false;
+        });
+      });
+    });
+  }
+
+  // ==================== CASCADE ====================
+
+  private checkCascade(onComplete: () => void): void {
+    const chains = this.chainEvaluator.evaluateAll(this.grid);
+
+    if (chains.length === 0) {
+      if (!this.chainEvaluator.hasAnyChain(this.grid)) {
+        this.triggerGameOver();
+      } else {
+        onComplete();
+      }
+      return;
+    }
+
+    // Auto-destruir cadenas grandes (cascade)
+    const bigChains = chains.filter(c => c.blocks.length >= 6);
+    if (bigChains.length === 0) { onComplete(); return; }
+
+    Logger.info(`[Cascade] Auto-destroying ${bigChains.length} chains`);
+
+    let processed = 0;
+    const allAffectedCols = new Set<number>();
+
+    for (const chain of bigChains) {
+      const comboLevel = this.comboSystem.hit();
+      GameController.registerCombo(comboLevel);
+      const score = this.scoreSystem.calculate(chain, comboLevel);
+      GameController.addScore(score.total, chain.type);
+
+      const { removedBlocks, affectedCols } = this.chainProcessor.process(this.grid, chain);
+      affectedCols.forEach(c => allAffectedCols.add(c));
+      this.playDestroyVFX(removedBlocks, score.total);
+
+      this.playDestroyAnimation(removedBlocks, () => {
+        processed++;
+        if (processed >= bigChains.length) {
+          this.applyGravityAndRefill([...allAffectedCols], () => {
+            // Recursivo — sigue buscando cascades
+            this.time.delayedCall(200, () => this.checkCascade(onComplete));
+          });
+        }
+      });
+    }
+  }
+
+  // ==================== HELPERS ====================
+
+  private applyGravityAndRefill(affectedCols: number[], onComplete: () => void): void {
+    const fallen = this.chainProcessor.applyGravity(this.grid, affectedCols);
+    this.updateFallenViews(fallen, () => {
+      const newBlocks = this.gridRefiller.refillCols(this.grid, affectedCols);
+      this.spawnNewBlockViews(newBlocks, onComplete);
+    });
+  }
+
+  private getMostCommonType(): BlockType {
+    const counts = new Map<BlockType, number>();
+    for (const block of this.grid.getAll()) {
+      counts.set(block.type, (counts.get(block.type) ?? 0) + 1);
+    }
+    let max = 0;
+    let result = BlockType.RED;
+    for (const [type, count] of counts) {
+      if (count > max) { max = count; result = type; }
+    }
+    return result;
+  }
+
+  private playDestroyVFX(blocks: Block[], score: number): void {
+    const positions = blocks.map(b => ({
+      x: this.gridToWorld(b.row, b.col).x,
+      y: this.gridToWorld(b.row, b.col).y,
+      type: b.type,
+    }));
+    this.vfx.playChainExplosion(positions);
+
+    if (positions.length > 0) {
+      const cx = positions.reduce((s, b) => s + b.x, 0) / positions.length;
+      const cy = positions.reduce((s, b) => s + b.y, 0) / positions.length;
+      this.vfx.showFloatingScore(cx, cy, score);
+    }
+  }
+
   // ==================== ANIMACIONES ====================
 
   private playDestroyAnimation(blocks: Block[], onComplete: () => void): void {
-    let completed = 0;
     if (blocks.length === 0) { onComplete(); return; }
+    let completed = 0;
 
     for (const block of blocks) {
       const view = this.blockViews.get(block.id);
       if (!view) { completed++; if (completed >= blocks.length) onComplete(); continue; }
-
       view.playExplode(() => {
         this.blockViews.delete(block.id);
         completed++;
@@ -245,17 +355,14 @@ export class GameScene extends Phaser.Scene {
 
   private updateFallenViews(fallen: Block[], onComplete: () => void): void {
     if (fallen.length === 0) { onComplete(); return; }
-
     let completed = 0;
     const checked = new Set<string>();
 
     for (const block of fallen) {
       if (checked.has(block.id)) { completed++; continue; }
       checked.add(block.id);
-
       const view = this.blockViews.get(block.id);
       if (!view) { completed++; if (completed >= checked.size) onComplete(); continue; }
-
       const { x, y } = this.gridToWorld(block.row, block.col);
       this.tweens.add({
         targets: view['graphics'],
@@ -287,8 +394,6 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  // ==================== VIEWS ====================
-
   private spawnBlockView(block: Block, animate = false): BlockView {
     const { x, y } = this.gridToWorld(block.row, block.col);
     const view = new BlockView(this, block, x, y);
@@ -303,18 +408,15 @@ export class GameScene extends Phaser.Scene {
         duration: 180, ease: 'Back.easeOut',
       });
     }
-
     return view;
   }
 
   // ==================== GAME OVER ====================
 
   private triggerGameOver(): void {
-    const score = StateManager.getGame().score;
     GameController.endGame();
     this.isProcessing = false;
     this.uiManager.showToast('No more moves!', 2000, '#ff4444');
-    Logger.game(`Game over — score: ${score}`);
   }
 
   private restartScene(): void {
@@ -330,8 +432,6 @@ export class GameScene extends Phaser.Scene {
     for (const view of this.blockViews.values()) view.destroy();
     this.blockViews.clear();
   }
-
-  // ==================== HELPERS ====================
 
   private gridToWorld(row: number, col: number): { x: number, y: number } {
     return {
