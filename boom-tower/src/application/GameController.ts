@@ -29,16 +29,11 @@ class GameController_ {
   }
 
   // Inicializar con Phaser game
-  init(game: Phaser.Game): void {
-    this.game = game;
-    this.inputManager = new InputManager(game);
-    
-    // Subscribir a eventos de estado
+  init(scene: Phaser.Scene): void {
+    this.game = scene.game;
     this.setupEventListeners();
-    
     Logger.info('[GameController] Initialized');
   }
-
   // Iniciar partida
   startGame(): void {
     if (this.isRunning) {

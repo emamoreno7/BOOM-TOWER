@@ -75,7 +75,7 @@ export class GameScene extends Phaser.Scene {
     this.cellSize = BlockView.cellSize();
 
     this.gridOriginX = width / 2 - (GRID_COLS * this.cellSize) / 2 + this.cellSize / 2;
-    this.gridOrigi = height / 2 - (GRID_ROWS * this.cellSize) / 2 + this.cellSize / 2;
+    this.gridOriginY = height / 2 - (GRID_ROWS * this.cellSize) / 2 + this.cellSize / 2;
 
     // Domain
     this.blockFactory       = new BlockFactory();
@@ -425,9 +425,9 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
-  private worldToGrid(wx: number, wy: number): { row: number; col: number } | null {
+  private worldToGrid(wx: number, wy: number): { row: number, col: number } | null {
     const col = Math.round((wx - this.gridOriginX) / this.cellSize);
-    cot row = Math.round((wy - this.gridOriginY) / this.cellSize);
+    const row = Math.round((wy - this.gridOriginY) / this.cellSize);
     if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) return null;
     return { row, col };
   }
