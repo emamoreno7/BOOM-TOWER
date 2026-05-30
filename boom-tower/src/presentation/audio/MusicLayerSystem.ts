@@ -1,73 +1,79 @@
 import Phaser from 'phaser';
 import { Logger } from '../../core/Logger';
-import { EventBus } from '../../core/EventBus';
-
-// ============================================
-// MUSIC LAYER SYSTEM — Musica dinamica por capas
-// ============================================
-
-interface MusicLayer {
-  key: string; sound: Phaser.Sound.BaseSound | null;
-  targetVolume: number;
-  currentVolume: number;
-}
 
 export class MusicLayerSystem {
   private scene: Phaser.Scene;
-  private layers: Map<string, MusicLayer> = new Map();
-  private masterVolume = 0.7;
+  private layers: Map<string, Phaser.Sound.BaseSound> = new Map();
+  private activeLayer: string | null = null;
+  private volume = 0.4;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
-    this.setupListeners();
-    Logger.ui('[MusicLayerSystem] Initialized');
+    Logger.info('[MusicLayerSystem] Initialized');
   }
 
-  addLayer(id: string, key: string, startVolume = 0): void {
+  addLayer(key: string): void {
     if (!this.scene.cache.audio.exists(key)) {
-      Logger.warn('[MusicLayerSystem] Audio not found: ' + key);
+      Logger.debug(`[MusicLayerSystem] Audio not found: ${key}`);
       return;
     }
-    const sound = this.scene.sound.add(key, { volume: startVolume, loop: true });
-    sound.play();
-    this.layers.set(id, { key, sound, targetVolume: startVolume, currentVolume: startVolume });
-    Logger.ui('[MusicLayerSystem] Layer added: ' + id);
+    const sound = this.scene.sound.add(key, {
+      loop: true, volume: 0,
+    });
+    this.layers.set(key, sound);
   }
 
-  setLayerVolume(id: string, volume: number): void {
-    const layer = this.layers.get(id);
-    if (layer) layer.targetVolume = Math.max(0, Math.min(1, volume)) * this.masterVolume;
-  }
+  play(key: string, fadeDuration = 500): void {
+    if (this.activeLayer === key) return;
 
-  fadeIn(id: string): void  { this.setLayerVolume(id, 1); }
-  fadeOut(id: string): void { this.setLayerVolume(id, 0); }
+    // Fade out anterior
+    if (this.activeLayer) {
+      const prev = this.layers.get(this.activeLayer);
+      if (prev) {
+        this.scene.tweens.add({
+          targets: prev, volume: 0,
+          duration: fadeDuration,
+          onComplete: () => (prev as Phaser.Sound.WebAudioSound).stop(),
+        });
+      }
+    }
 
-  update(): void {
-    for (const layer of this.layers.values()) {
-      if (!layer.sound) continue;
-      const diff = layer.targetVolume - layer.currentVolume;
-      if (Math.abs(diff) < 0.001) continue;
-      layer.currentVolume += diff * 0.2;
-      (layer.sound as Phaser.Sound.WebAudioSound).setVolume(layer.currentVolume);
+    // Fade in nuevo
+    const next = this.layers.get(key);
+    if (next) {
+      (next as Phaser.Sound.WebAudioSound).play();
+      this.scene.tweens.add({
+        targets: next, volume: this.volume,
+        duration: fadeDuration,
+      });
+      this.activeLayer = key;
     }
   }
 
-  setMasterVolume(volume: number): void {
-    this.masterVolume = Math.max(0, Math.min(1, volume));
+  stop(fadeDuration = 500): void {
+    if (!this.activeLayer) return;
+    const current = this.layers.get(this.activeLayer);
+    if (current) {
+      this.scene.tweens.add({
+        targets: current, volume: 0,
+        duration: fadeDuration,
+        onComplete: () => (current as Phaser.Sound.WebAudioSound).stop(),
+      });
+    }
+    this.activeLayer = null;
   }
 
-  private setupListeners(): void {
-    EventBus.on('event:started', () => this.fadeIn('intensity'));
-    EventBus.on('event:ended',   () => this.fadeOut('intensity'));
-    EventBus.on('combo:hit', (data: { level: number }) => {
-      if (data.level >= 3) this.fadeIn('intensity');
-    });
+  setVolume(volume: number): void {
+    this.volume = Phaser.Math.Clamp(volume, 0, 1);
+    if (this.activeLayer) {
+      const current = this.layers.get(this.activeLayer);
+      if (current) (current as any).volume = this.volume;
+    }
   }
 
   destroy(): void {
-    for (const layer of this.layers.values()) {
-      layer.sound?.stop();
-      layer.sound?.destroy();
+    for (const [, sound] of this.layers) {
+      sound.destroy();
     }
     this.layers.clear();
   }

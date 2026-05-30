@@ -1,34 +1,29 @@
+import { Block, createBlock } from '../Block';
 import { BlockType } from '../BlockType';
 import { Grid } from '../../grid/Grid';
 
-// ============================================
-// BOMB BLOCK — Explosión en área 3x3
-// ============================================
-export interface SpecialBlockResult {
-  affectedCells: Array<{ row: number; col: number }>;
-  score: number;
-  type: BlockType;
+export interface BombBlock extends Block {
+  specialType: 'BOMB';
+  radius: number;
 }
 
-export class BombBlock {
-  static readonly TYPE = BlockType.BOMB;
-  static readonly RADIUS = 1;
+export function createBombBlock(row: number, col: number): BombBlock {
+  const base = createBlock(BlockType.RED, row, col);
+  return { ...base, specialType: 'BOMB', radius: 1 };
+}
 
-  static activate(grid: Grid, row: number, col: number): SpecialBlockResult {
-    const affected: Array<{ row: number; col: number }> = [];
-
-    for (let r = row - this.RADIUS; r <= row + this.RADIUS; r++) {
-      for (let c = col - this.RADIUS; c <= col + this.RADIUS; c++) {
-        if (grid.inBounds(r, c) && !grid.isEmpty(r, c)) {
-          affected.push({ row: r, col: c });
-        }
-      }
+export function getBombExplosionCells(
+  grid: Grid,
+  row: number,
+  col: number,
+  radius: number
+): Block[] {
+  const affected: Block[] = [];
+  for (let r = row - radius; r <= row + radius; r++) {
+    for (let c = col - radius; c <= col + radius; c++) {
+      const block = grid.get(r, c);
+      if (block) affected.push(block);
     }
-
-    return {
-      affectedCells: affected,
-      score: affected.length * 150,
-      type: BlockType.BOMB,
-};
   }
+  return affected;
 }

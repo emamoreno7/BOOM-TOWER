@@ -1,31 +1,17 @@
+import { Block, createBlock } from '../Block';
 import { BlockType } from '../BlockType';
 import { Grid } from '../../grid/Grid';
-import { SpecialBlockResult } from './BombBlock';
 
-// ============================================
-// JACKPOT BLOCK — Multiplicador masivo de score
-// ============================================
-export class JackpotBlock {
-  static readonly TYPE = BlockType.JACKPOT;
-  static readonly MULTIPLIER = 5;
-  static readonly RADIUS = 2;
-  static readonlRADIUS = 2;
+export interface JackpotBlock extends Block {
+  specialType: 'JACKPOT';
+  multiplier: number;
+}
 
-  static activate(grid: Grid, row: number, col: number): SpecialBlockResult {
-    const affected: Array<{ row: number; col: number }> = [];
+export function createJackpotBlock(row: number, col: number): JackpotBlock {
+  const base = createBlock(BlockType.YELLOW, row, col);
+  return { ...base, specialType: 'JACKPOT', multiplier: 5 };
+}
 
-    for (let r = row - this.RADIUS; r <= row + this.RADIUS; r++) {
-      for (let c = col - this.RADIUS; c <= col + this.RADIUS; c++) {
-        if (grid.inBounds(r, c) && !grid.isEmpty(r, c)) {
-          affected.push({ row: r, col: c });
-        }
-      }
-    }
-
-    return {
-      affectedCells: affected,
-      score: affected.length * 500 * this.MULTIPLIER,
-      type: BlockType.JACKPOT,
-    };
-  }
+export function getJackpotCells(grid: Grid): Block[] {
+  return grid.getAll();
 }
