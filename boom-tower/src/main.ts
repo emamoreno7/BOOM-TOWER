@@ -7,18 +7,20 @@ import { BootScene } from './presentation/scenes/BootScene';
 import { SplashScene } from './presentation/scenes/SplashScene';
 import { MenuScene } from './presentation/scenes/MenuScene';
 import { GameScene } from './presentation/scenes/GameScene';
+import { ShopScene } from './presentation/scenes/ShopScene';
+import { ChestsScene } from './presentation/scenes/ChestsScene';
+import { ProfileScene } from './presentation/scenes/ProfileScene';
+import { MissionsScene } from './presentation/scenes/MissionsScene';
+import { AchievementsScene } from './presentation/scenes/AchievementsScene';
 
 // ============================================
 // BOOM TOWER — Entry Point
 // ============================================
 
-// Ocultar loading
 function hideLoadingScreen(): void {
   const loading = document.getElementById('loading');
   const fill = document.getElementById('loading-fill');
-  
   if (fill) fill.style.width = '100%';
-  
   setTimeout(() => {
     if (loading) {
       loading.classList.add('hidden');
@@ -27,49 +29,57 @@ function hideLoadingScreen(): void {
   }, 300);
 }
 
-// Inicializar juego
 function initGame(): Phaser.Game {
   Logger.game('=== BOOM TOWER ===');
   Logger.game(`Version: ${CONFIG.VERSION}`);
   Logger.game(`Build: ${CONFIG.BUILD}`);
 
   // Registrar escenas
-  SceneRouter.register('boot', { sceneClass: BootScene });
-  SceneRouter.register('splash', { sceneClass: SplashScene });
-  SceneRouter.register('menu', { sceneClass: MenuScene });
-  SceneRouter.register('game', { sceneClass: GameScene });
+  SceneRouter.register('boot',         { sceneClass: BootScene });
+  SceneRouter.register('splash',       { sceneClass: SplashScene });
+  SceneRouter.register('menu',         { sceneClass: MenuScene });
+  SceneRouter.register('game',         { sceneClass: GameScene });
+  SceneRouter.register('shop',         { sceneClass: ShopScene });
+  SceneRouter.register('chests',       { sceneClass: ChestsScene });
+  SceneRouter.register('profile',      { sceneClass: ProfileScene });
+  SceneRouter.register('missions',     { sceneClass: MissionsScene });
+  SceneRouter.register('achievements', { sceneClass: AchievementsScene });
 
-  // Config de Phaser
   const phaserConfig: Phaser.Types.Core.GameConfig = {
     ...CONFIG.PHASER,
-    scene: [BootScene, SplashScene, MenuScene, GameScene],
+    scene: [
+      BootScene,
+      SplashScene,
+      MenuScene,
+      GameScene,
+      ShopScene,
+      ChestsScene,
+      ProfileScene,
+      MissionsScene,
+      AchievementsScene,
+    ],
   };
 
-  // Crear juego
   const game = new Phaser.Game(phaserConfig);
 
-  // Event: game ready
   game.events.once('ready', () => {
     Logger.game('Phaser game ready');
     EventBus.emit('game:boot', { version: CONFIG.VERSION });
     EventBus.emit('game:ready', { timestamp: Date.now() });
   });
 
-  // Global error handler
   window.addEventListener('error', (event) => {
     Logger.error('Global error', {
       message: event.message,
       filename: event.filename,
       lineno: event.lineno,
     });
-    
     EventBus.emit('error:caught', {
       error: new Error(event.message),
       context: `${event.filename}:${event.lineno}`,
     });
   });
 
-  // Ocultar loading cuando el DOM esté listo
   if (document.readyState === 'complete') {
     hideLoadingScreen();
   } else {
@@ -79,10 +89,6 @@ function initGame(): Phaser.Game {
   return game;
 }
 
-// Start
 const game = initGame();
-
-// Export para debug
 (window as unknown as { game: Phaser.Game }).game = game;
-
 Logger.system('Entry point executed');
