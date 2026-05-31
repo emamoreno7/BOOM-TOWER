@@ -11,7 +11,7 @@ import { ChainProcessor } from '../../domain/chain/ChainProcessor';
 import { ScoreSystem } from '../../domain/scoring/ScoreSystem';
 import { ComboSystem } from '../../domain/scoring/ComboSystem';
 import { DifficultyDirector } from '../../domain/difficulty/DifficultyDirector';
-import { BlockView } from '../vfx/BlockView';
+import { BlockView, setSkinColors } from "../vfx/BlockView";
 import { VFXManager } from '../vfx/VFXManager';
 import { HUD } from '../hud/HUD';
 import { ComboTextOverlay } from '../overlay/ComboTextOverlay';
@@ -98,6 +98,7 @@ private localizationSystem!: LocalizationSystem;
     this.localizationSystem    = new LocalizationSystem();
     this.themeManager    = new ThemeManager(this, this.themeSystem, this.skinSystem);
     this.themeManager.applyTheme();
+    setSkinColors(this.skinSystem.getActiveSkin().blockColors);
 
     // Build scene
     this.createBackground(width, height);
