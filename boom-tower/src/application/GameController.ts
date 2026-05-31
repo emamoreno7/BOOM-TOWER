@@ -4,6 +4,10 @@ import { EventBus } from '../core/EventBus';
 import { StateManager } from './state/StateManager';
 import { InputManager } from './InputManager';
 import { StatsTracker } from '../domain/stats/StatsTracker';
+import { EconomySystem } from '../domain/economy/EconomySystem';
+import { LevelSystem } from '../domain/leveling/LevelSystem';
+import { AchievementSystem } from '../domain/achievements/AchievementSystem';
+import { MissionSystem } from '../domain/missions/MissionSystem';
 
 // ============================================
 // GAME CONTROLLER — Orquestador del gameplay
@@ -11,11 +15,11 @@ import { StatsTracker } from '../domain/stats/StatsTracker';
 
 class GameController_ {
   private static instance: GameController_;
-  
+
   private game: Phaser.Game | null = null;
   private inputManager: InputManager | null = null;
   private isRunning = false;
-  private lastUpdateTime = 0;
+  private blocksDestroyedThisRun = 0;
 
   private constructor() {
     Logger.system('GameController initialized');
@@ -28,20 +32,20 @@ class GameController_ {
     return GameController_.instance;
   }
 
-  // Inicializar con Phaser game
   init(scene: Phaser.Scene): void {
     this.game = scene.game;
     this.setupEventListeners();
+    MissionSystem.init();
     Logger.info('[GameController] Initialized');
   }
-  // Iniciar partida
+
   startGame(): void {
     if (this.isRunning) {
       Logger.warn('[GameController] Game already running');
       return;
     }
-
     Logger.game('Starting new game');
+    this.blocksDestroyedThisRun = 0;
 
     StateManager.updateGame((state) => ({
       ...state,
@@ -60,35 +64,25 @@ class GameController_ {
 
     StatsTracker.startSession();
     EventBus.emit('game:start', { scene: 'game' });
-
     this.isRunning = true;
   }
 
-  // Pausar
   pauseGame(): void {
     if (!this.isRunning) return;
-
     Logger.game('Game paused');
-
     StateManager.updateGame((state) => ({
       ...state,
       isPaused: true,
       appState: 'PAUSED',
       pauseStartTime: Date.now(),
     }));
-
     EventBus.emit('game:pause', {});
   }
 
-  // Reanudar
   resumeGame(): void {
     StateManager.updateGame((state) => {
       if (!state.isPaused) return state;
-      
-      const pauseDuration = state.pauseStartTime 
-        ? Date.now() - state.pauseStartTime 
-        : 0;
-      
+      const pauseDuration = state.pauseStartTime ? Date.now() - state.pauseStartTime : 0;
       return {
         ...state,
         isPaused: false,
@@ -97,22 +91,18 @@ class GameController_ {
         pauseStartTime: null,
       };
     });
-
     Logger.game('Game resumed');
     EventBus.emit('game:resume', {});
   }
 
-  // Terminar partida
   endGame(): void {
     if (!this.isRunning) return;
 
     const gameState = StateManager.getGame();
+    const score     = gameState.score;
+    const maxCombo  = gameState.maxComboThisRun;
 
-    Logger.game('Game over', {
-      score: gameState.score,
-      depth: gameState.maxDepth,
-      maxCombo: gameState.maxComboThisRun,
-    });
+    Logger.game('Game over', { score, maxCombo });
 
     StateManager.updateGame((state) => ({
       ...state,
@@ -122,19 +112,43 @@ class GameController_ {
     }));
 
     StatsTracker.endSession();
-    EventBus.emit('game:over', {
-      score: gameState.score,
-      depth: gameState.maxDepth,
+
+    // Recompensar con coins
+    const reward = EconomySystem.rewardFromScore(score, maxCombo);
+
+    // XP basada en score
+    const xp = Math.floor(score / 10) + maxCombo * 5;
+    LevelSystem.addXP(xp);
+
+    // Evaluar logros
+    const player = StateManager.getPlayer();
+    AchievementSystem.evaluate({
+      totalGamesPlayed:       player.totalGamesPlayed + 1,
+      totalScore:             score,
+      maxCombo,
+      totalBlocksDestroyed:   this.blocksDestroyedThisRun,
+      level:                  LevelSystem.getLevel(),
+      specialBlocksActivated: 0,
+      jackpotsTriggered:      0,
+      perfectRuns:            0,
     });
+
+    // Progreso de misiones
+    EventBus.emit('game:ended', {
+      score,
+      maxCombo,
+      blocksDestroyed: this.blocksDestroyedThisRun,
+    });
+
+    EventBus.emit('game:over', { score, depth: gameState.maxDepth, reward });
+    this.isRunning = false;
   }
 
-  // Reiniciar
   restartGame(): void {
     Logger.game('Restarting game');
-
+    this.blocksDestroyedThisRun = 0;
     StateManager.resetSession();
     StatsTracker.startSession();
-
     StateManager.updateGame((state) => ({
       ...state,
       appState: 'PLAYING',
@@ -148,23 +162,20 @@ class GameController_ {
       sessionStartTime: Date.now(),
       lastActionTime: Date.now(),
     }));
-
     EventBus.emit('game:restart', {});
   }
 
-  // Agregar score
   addScore(amount: number, source = 'block'): void {
+    this.blocksDestroyedThisRun++;
     StateManager.updateGame((state) => ({
       ...state,
       score: state.score + amount,
       lastActionTime: Date.now(),
     }));
-
     StatsTracker.recordBlockDestroyed(source);
     EventBus.emit('score:gained', { amount, source });
   }
 
-  // Registrar combo
   registerCombo(level: number): void {
     StateManager.updateGame((state) => ({
       ...state,
@@ -172,72 +183,43 @@ class GameController_ {
       chainLength: level,
       maxComboThisRun: Math.max(state.maxComboThisRun, level),
     }));
-
     StatsTracker.recordCombo(level);
+    EventBus.emit('combo:hit', { level, multiplier: this.getComboMultiplier(level) });
     EventBus.emit('combo:increased', { level, multiplier: this.getComboMultiplier(level) });
   }
 
-  // Registrar profundidad
   setDepth(depth: number): void {
     StateManager.updateGame((state) => ({
       ...state,
       currentDepth: depth,
       maxDepth: Math.max(state.maxDepth, depth),
     }));
-
     StatsTracker.recordDepth(depth);
   }
 
-  // Actualizar combo (decay)
-  updateCombo(delta: number): void {
-    const state = StateManager.getGame();
-    if (state.combo > 0 && delta > 3) {
-      StateManager.updateGame((s) => ({
-        ...s,
-        combo: 0,
-        chainLength: 0,
-      }));
-    }
-  }
-
-  // Getters
-  isGameRunning(): boolean {
-    return this.isRunning;
-  }
-
-  isGamePaused(): boolean {
-    return StateManager.getGame().isPaused;
-  }
-
-  isGameOver(): boolean {
-    return StateManager.getGame().isGameOver;
-  }
-
-  getScore(): number {
-    return StateManager.getGame().score;
-  }
-
-  getCombo(): number {
-    return StateManager.getGame().combo;
-  }
+  isGameRunning(): boolean { return this.isRunning; }
+  isGamePaused(): boolean  { return StateManager.getGame().isPaused; }
+  isGameOver(): boolean    { return StateManager.getGame().isGameOver; }
+  getScore(): number       { return StateManager.getGame().score; }
+  getCombo(): number       { return StateManager.getGame().combo; }
 
   private getComboMultiplier(level: number): number {
     if (level >= 100) return 10;
-    if (level >= 50) return 7;
-    if (level >= 25) return 5;
-    if (level >= 10) return 3;
-    if (level >= 5) return 2;
+    if (level >= 50)  return 7;
+    if (level >= 25)  return 5;
+    if (level >= 10)  return 3;
+    if (level >= 5)   return 2;
     return 1;
   }
 
-  // Setup event listeners
   private setupEventListeners(): void {
-    EventBus.on('game:over', () => {
-      this.isRunning = false;
+    EventBus.on('game:over', () => { this.isRunning = false; });
+    EventBus.on('economy:reward', (data: { coins?: number; gems?: number; reason: string }) => {
+      if (data.coins) EconomySystem.reward({ coins: data.coins, reason: data.reason });
+      if (data.gems)  EconomySystem.reward({ gems: data.gems, reason: data.reason });
     });
   }
 
-  // Destroy
   destroy(): void {
     this.inputManager?.destroy();
     this.game = null;

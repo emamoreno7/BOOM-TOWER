@@ -63,8 +63,8 @@ export class GameScene extends Phaser.Scene {
     Logger.game('GameScene create — Fase 2');
 
     this.cellSize = BlockView.cellSize();
-    this.gridOriginX = width / 2 - (GRID_COLS * this.cellSize) / 2 + this.cellSize / 2;
-    this.gridOriginY = height / 2 - (GRID_ROWS * this.cellSize) / 2 + this.cellSize / 2;
+    this.gridOriginX = (width - GRID_COLS * this.cellSize) / 2 + this.cellSize / 2;
+    this.gridOriginY = (height - GRID_ROWS * this.cellSize) / 2 + this.cellSize / 2;
 
     // Domain
     this.blockFactory       = new BlockFactory();
