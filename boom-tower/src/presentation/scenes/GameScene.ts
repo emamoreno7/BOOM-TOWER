@@ -20,7 +20,12 @@ import { UIManager } from '../ui/UIManager';
 import { AudioManager } from '../audio/AudioManager';
 import { Block } from '../../domain/blocks/Block';
 import { BlockType, isSpecial } from '../../domain/blocks/BlockType';
-import { handleSpecialBlock } from '../../domain/blocks/special/SpecialBlockHandler';
+import { handleSpecialBlock } from "../../domain/blocks/special/SpecialBlockHandler";
+import { SkinSystem } from "../../domain/skins/SkinSystem";
+import { ThemeSystem } from "../../domain/themes/ThemeSystem";
+import { ThemeManager } from "../themes/ThemeManager";
+import { QualitySettings } from "../../infrastructure/quality/QualitySettings";
+import { LocalizationSystem } from "../../infrastructure/localization/LocalizationSystem";
 
 const GRID_ROWS = 8;
 const GRID_COLS = 6;
@@ -35,6 +40,11 @@ export class GameScene extends Phaser.Scene {
   private scoreSystem!: ScoreSystem;
   private comboSystem!: ComboSystem;
   private difficultyDirector!: DifficultyDirector;
+  private skinSystem!: SkinSystem;
+private themeSystem!: ThemeSystem;
+private themeManager!: ThemeManager;
+private qualitySettings!: QualitySettings;
+private localizationSystem!: LocalizationSystem;
 
   // Presentation
   private blockViews = new Map<string, BlockView>();
@@ -82,6 +92,12 @@ export class GameScene extends Phaser.Scene {
     this.comboOverlay = new ComboTextOverlay(this);
     this.uiManager    = new UIManager(this);
     this.audio        = new AudioManager(this);
+    this.skinSystem      = new SkinSystem();
+    this.themeSystem     = new ThemeSystem();
+    this.qualitySettings = new QualitySettings();
+    this.localizationSystem    = new LocalizationSystem();
+    this.themeManager    = new ThemeManager(this, this.themeSystem, this.skinSystem);
+    this.themeManager.applyTheme();
 
     // Build scene
     this.createBackground(width, height);
