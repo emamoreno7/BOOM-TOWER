@@ -5,6 +5,7 @@ import { SkinSystem } from '../../domain/skins/SkinSystem';
 import { EconomyBalancer } from '../../domain/economy/EconomyBalancer';
 
 export class ShopScene extends Phaser.Scene {
+  private skinSystem = new SkinSystem();
   private balancer = new EconomyBalancer();
 
   constructor() { super({ key: 'shop' }); }
@@ -30,12 +31,12 @@ export class ShopScene extends Phaser.Scene {
       color: '#ffdd00',
     }).setOrigin(0.5);
 
-    const skins = SkinSystem.getAll();
+    const skins = this.skinSystem.getAll();
     let y = 210;
 
     for (const skin of skins) {
-      const owned = SkinSystem.isOwned(skin.id);
-      const cost = this.balancer.getSkinCost(skin.tier);
+      const owned = this.skinSystem.isUnlocked(skin.id);
+      const cost = { coins: skin.price, gems: 0 };
       const color = owned ? '#44ff88' : '#ffffff';
       const status = owned ? 'Equipar' : cost.coins + ' coins';
 
@@ -57,11 +58,11 @@ export class ShopScene extends Phaser.Scene {
 
       actionBtn.on('pointerdown', () => {
         if (owned) {
-          SkinSystem.equipSkin(skin.id);
+          this.skinSystem.setActiveSkin(skin.id);
         } else {
           const success = EconomySystem.purchase(cost.coins, cost.gems, skin.id);
           if (success) {
-            SkinSystem.unlockSkin(skin.id);
+            this.skinSystem.unlock(skin.id);
             this.scene.restart();
           }
         }
