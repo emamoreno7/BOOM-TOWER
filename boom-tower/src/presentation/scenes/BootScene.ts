@@ -6,8 +6,10 @@ import { SaveSystem } from '../../infrastructure/save/SaveSystem';
 import { LocalStorageDriver } from '../../infrastructure/save/LocalStorageDriver';
 import { StateManager } from '../../application/state/StateManager';
 import { SessionManager } from '../../application/SessionManager';
-import { SceneRouter } from '../../application/SceneRouter';
 import { StatsTracker } from '../../domain/stats/StatsTracker';
+import { LoginStreakSystem } from '../../domain/retention/LoginStreakSystem';
+import { DailyRewardSystem } from '../../domain/retention/DailyRewardSystem';
+import { createInitialRetentionState } from '../../domain/retention/RetentionState';
 
 // ============================================
 // BOOT SCENE — Inicialización del juego
@@ -26,129 +28,143 @@ export class BootScene extends Phaser.Scene {
   preload(): void {
     this.createLoadingUI();
     this.setupLoadEvents();
-    
-    // Cargar assets dummy (placeholder para Fase 0)
-    // En fases futuras se cargarán sprites reales aquí
   }
 
   create(): void {
     Logger.game('Boot scene creating');
-
-    // Ocultar loading
     this.hideLoadingUI();
-
-    // Inicializar sistemas core
     this.initializeCore();
-
-    // Cargar configs si existen
     this.loadConfigs();
-
-    // Cargar save
     this.loadSave();
-
-    // Iniciar sesión
     SessionManager.start();
 
-    // Transición a splash
     this.time.delayedCall(500, () => {
+      this.checkRetention();
       this.scene.start('splash');
     });
   }
 
-  private createLoadingUI(): void {
+  // ==================== RETENTION ====================
+
+  private checkRetention(): void {
+    const streakSystem = new LoginStreakSystem();
+    const rewardSystem = new DailyRewardSystem();
+
+    // Cargar estado de retención del localStorage
+    let retentionState = createInitialRetentionState();
+    try {
+      const saved = localStorage.etItem('boom_tower_retention');
+      if (saved) retentionState = JSON.parse(saved);
+    } catch {
+      Logger.debug('[Boot] No retention state found');
+    }
+
+    // Chequear login
+    const { updated, result } = streakSystem.checkLogin(retentionState);
+    retentionState = updated;
+
+    if (result.isNewDay) {
+      Logger.info(`[Boot] New day! Streak: ${result.currentStreak}`);
+
+      // Milestone de racha
+      const milestone = streakSystem.getMilestone(result.currentStreak);
+      if (milestone) {
+        this.time.delayedCall(1500, () => {
+          EventBus.emit('ui:toast', { message: milestone, color: '#ffd700' });
+        });
+      }
+
+      // Racha rota
+      if (result.streakBroken) {
+        Logger.info('[Boot] Streak broken!');
+        retentionState.loginStreak = 1;
+      }
+
+      // Mostrar daily reward si no reclamó hoy
+      if (rewardSystem.canClaim(retentionState)) {
+        this.time.delayedCall(2000, () => {
+          EventBus.emit('retention:show_daily', {});
+        });
+      }
+    
+
+    // Guardar estado actualizado
+    try {
+      localStorage.setItem('boom_tower_retention', JSON.stringify(retentionState));
+    } catch {
+      Logger.error('[Boot] Failed to save retention state', {});
+    }
+
+    // Emitir streak actual
+    EventBus.emit('retention:streak_updated', {
+      streak: retentionState.loginStreak,
+      isNewDay: result.isNewDay,
+    });
+  }
+
+  // ==================== UI ====================
+
+  // ==================== UI ====================
     const { width, height } = this.cameras.main;
 
-    // Progress box
     this.progressBox = this.add.graphics();
     this.progressBox.fillStyle(0x333333, 1);
     this.progressBox.fillRect(width / 2 - 160, height / 2, 320, 30);
     this.progressBox.setDepth(100);
 
-    // Progress bar
     this.progressBar = this.add.graphics();
     this.progressBar.setDepth(100);
 
-    // Loading text
     this.loadingText = this.add.text(width / 2, height / 2 - 50, 'LOADING...', {
-      fontSize: '24px',
-      fontFamily: 'Arial',
-      color: '#ffd700',
-      fontStyle: 'bold',
-    });
-    this.loadingText.setOrigin(0.5);
-    this.loadingText.setDepth(100);
+      fontSize: '24px', fontFamily: 'Arial',
+      color: '#ffd700', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(100);
 
-    // Asset text
     this.assetText = this.add.text(width / 2, height / 2 + 50, '', {
-      fontSize: '16px',
-      fontFamily: 'Arial',
-      color: '#888888',
-    });
-    this.assetText.setOrigin(0.5);
-    this.assetText.setDepth(100);
+      fontSize: '16px', fontFamily: 'Arial', color: '#888888',
+    }).setOrigin(0.5).setDepth(100);
   }
 
   private hideLoadingUI(): void {
-    if (this.progressBox) this.progressBox.destroy();
-    if (this.progressBar) this.progressBar.destroy();
-    if (this.loadingText) this.loadingText.destroy();
-    if (this.assetText) this.assetText.destroy();
+    this.progressBox?.destroy();
+    this.progressBar?.destroy();
+    this.loadingText?.destroy();
+    this.assetText?.destroy();
   }
 
   private setupLoadEvents(): void {
-    // Progress bar
-    this.load.on('progress', (value: number) => {
-      this.updateProgressBar(value);
-    });
-
-    // File complete
+    this.load.on('progress', (value: number) => this.updateProgressBar(value));
     this.load.on('fileprogress', (file: Phaser.Loader.File) => {
-      if (this.assetText) {
-        this.assetText.setText(`Loading: ${file.key}`);
-      }
+      this.assetText?.setText(`Loading: ${file.key}`);
     });
-
-    // Complete
     this.load.on('complete', () => {
-      if (this.loadingText) {
-        this.loadingText.setText('READY!');
-      }
+      this.loadingText?.setText('READY!');
     });
   }
 
   private updateProgressBar(value: number): void {
-    if (!this.progressBar || !this.progressBox) return;
-
+    if (!this.progressBar) return;
     const { width, height } = this.cameras.main;
-    
     this.progressBar.clear();
     this.progressBar.fillStyle(0xffd700, 1);
     this.progressBar.fillRect(width / 2 - 160, height / 2, 320 * value, 30);
   }
 
+  // ==================== CORE ====================
+
   private initializeCore(): void {
     Logger.info('[Boot] Initializing core systems');
-
-    // Storage driver
     const storageDriver = new LocalStorageDriver();
     SaveSystem.init(storageDriver);
-
-    // Stats tracker
     StatsTracker.init();
-
     Logger.info('[Boot] Core systems initialized');
   }
 
   private async loadConfigs(): Promise<void> {
-    // Placeholder - en fases futuras cargar JSONs
     ConfigLoader.setBasePath('/data');
-    
-    // Intentar cargar config si existe
     try {
       const result = await ConfigLoader.load('game_config');
-      if (result.success) {
-        Logger.info('[Boot] Game config loaded');
-      }
+      if (result.success) Logger.info('[Boot] Game config loaded');
     } catch {
       Logger.debug('[Boot] No game config found, using defaults');
     }
